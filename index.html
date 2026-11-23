@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Calorie, Meal &amp; Exercise Coach</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+  </style>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#059669" />
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <!-- In-app Reminder Banner -->
+  <div id="reminder-banner" class="hidden bg-emerald-700 text-white px-4 py-3 shadow-md">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="text-lg" aria-hidden="true">&#9200;</span>
+        <div>
+          <p id="reminder-banner-title" class="font-semibold text-sm"></p>
+          <p id="reminder-banner-sub" class="text-xs text-emerald-100"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="reminder-banner-action" type="button" class="px-3 py-1.5 rounded-lg bg-white text-emerald-800 text-xs font-semibold hover:bg-emerald-50 transition">View Suggestions</button>
+        <button id="reminder-banner-dismiss" type="button" class="px-2.5 py-1.5 rounded-lg bg-emerald-800 text-white text-xs hover:bg-emerald-900 transition">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg transition-opacity"></div>
+
+  <div class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Daily Calorie &amp; Routine Coach</h1>
+        <p id="today-date-label" class="text-sm text-slate-500 mt-0.5"></p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2">
+          <p class="text-[11px] uppercase tracking-wide font-semibold text-emerald-700">Next Reminder</p>
+          <p id="next-reminder-text" class="text-sm font-semibold text-emerald-950">Loading...</p>
+        </div>
+        <button id="btn-test-alert" type="button" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition">
+          Test Reminder
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm" aria-label="Main sections">
+      <button type="button" data-tab="tracker" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white transition">Today &amp; Tracker</button>
+      <button type="button" data-tab="schedule" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">When to Eat (Reminders)</button>
+      <button type="button" data-tab="meals" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">What to Eat</button>
+      <button type="button" data-tab="exercise" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">Exercise Needed</button>
+      <button type="button" data-tab="progress" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">Goals &amp; Progress</button>
+    </nav>
+
+    <!-- TAB 1: TODAY & TRACKER -->
+    <section id="tab-tracker" class="tab-panel space-y-6">
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Calories Consumed</p>
+          <p id="kpi-consumed" class="text-2xl font-bold text-slate-900 mt-1">0 kcal</p>
+          <p id="kpi-target-sub" class="text-xs text-slate-500 mt-1">Target: 1,800 kcal</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Exercise Burned</p>
+          <p id="kpi-burned" class="text-2xl font-bold text-orange-600 mt-1">0 kcal</p>
+          <p id="kpi-burn-sub" class="text-xs text-slate-500 mt-1">Goal: 250 kcal</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Remaining Budget</p>
+          <p id="kpi-remaining" class="text-2xl font-bold text-emerald-600 mt-1">1,800 kcal</p>
+          <p id="kpi-net-sub" class="text-xs text-slate-500 mt-1">Net: 0 kcal</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Protein &amp; Water</p>
+          <p id="kpi-protein" class="text-2xl font-bold text-indigo-600 mt-1">0 g</p>
+          <p id="kpi-water-sub" class="text-xs text-slate-500 mt-1">Water: 0.0 / 3.0 L</p>
+        </div>
+      </div>
+
+      <!-- Calorie Progress Bar + Quick Water/Weight -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800">Daily Net Calorie Progress</h2>
+            <span id="calorie-progress-pct" class="text-xs font-semibold text-emerald-700">0% of target</span>
+          </div>
+          <div class="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden">
+            <div id="calorie-progress-bar" class="h-full bg-emerald-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p id="calorie-guidance-text" class="text-xs text-slate-600">Log your meals and workouts below to track your calorie deficit for weight loss.</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-800">Water &amp; Weight</span>
+            <span id="water-badge" class="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full">0.0 L</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-water-minus" type="button" class="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">-250 ml</button>
+            <button id="btn-water-plus" type="button" class="flex-1 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-xs font-semibold text-white transition">+250 ml</button>
+          </div>
+          <div class="flex items-center gap-2 pt-1">
+            <label for="today-weight-input" class="text-xs text-slate-600 whitespace-nowrap">Today (kg):</label>
+            <input id="today-weight-input" type="number" step="0.1" min="25" max="300" placeholder="e.g. 80.0" class="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <button id="btn-save-weight" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Log Forms -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Log Food Form -->
+        <form id="form-add-meal" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h2 class="text-base font-semibold text-slate-900">Log Food / Meal</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <label for="meal-name" class="block text-xs font-medium text-slate-600 mb-1">Food / Meal Name</label>
+              <input id="meal-name" type="text" required placeholder="e.g. 2 Moong Dal Chillas" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label for="meal-slot" class="block text-xs font-medium text-slate-600 mb-1">Meal Time</label>
+              <select id="meal-slot" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="Breakfast">Breakfast</option>
+                <option value="Lunch">Lunch</option>
+                <option value="Snack">Snack</option>
+                <option value="Dinner">Dinner</option>
+              </select>
+            </div>
+            <div>
+              <label for="meal-calories" class="block text-xs font-medium text-slate-600 mb-1">Calories (kcal)</label>
+              <input id="meal-calories" type="number" required min="1" max="4000" placeholder="330" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div class="col-span-2">
+              <label for="meal-protein" class="block text-xs font-medium text-slate-600 mb-1">Protein (g, optional)</label>
+              <input id="meal-protein" type="number" min="0" max="300" placeholder="18" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+          </div>
+          <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">Add Meal to Today</button>
+        </form>
+
+        <!-- Log Exercise Form -->
+        <form id="form-add-exercise" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h2 class="text-base font-semibold text-slate-900">Log Exercise</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <label for="exercise-type" class="block text-xs font-medium text-slate-600 mb-1">Activity</label>
+              <select id="exercise-type" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="3.8">Moderate Walking (3.8 MET)</option>
+                <option value="4.3">Brisk Walking (4.3 MET)</option>
+                <option value="2.5">Yoga / Stretching (2.5 MET)</option>
+                <option value="6.0">Strength / Weight Training (6.0 MET)</option>
+                <option value="6.8">Stationary Cycling (6.8 MET)</option>
+                <option value="8.0">HIIT / Zumba (8.0 MET)</option>
+                <option value="8.5">Running 8 km/h (8.5 MET)</option>
+              </select>
+            </div>
+            <div>
+              <label for="exercise-minutes" class="block text-xs font-medium text-slate-600 mb-1">Duration (minutes)</label>
+              <input id="exercise-minutes" type="number" required min="5" max="300" value="30" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Estimated Burn</label>
+              <p id="exercise-est-preview" class="px-3 py-2 text-sm font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-xl">152 kcal</p>
+            </div>
+          </div>
+          <button type="submit" class="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold transition">Add Exercise to Today</button>
+        </form>
+      </div>
+
+      <!-- Today's Activity Log -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-slate-900">Today's Log</h2>
+          <button id="btn-clear-today" type="button" class="text-xs font-medium text-rose-600 hover:text-rose-700">Clear Today</button>
+        </div>
+        <div id="today-log-list" class="divide-y divide-slate-100"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: SCHEDULE & REMINDERS -->
+    <section id="tab-schedule" class="tab-panel hidden space-y-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Daily Meal &amp; Exercise Reminder Schedule</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Customize when you want to eat and work out. Keep this tab open for live in-app &amp; sound alerts.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+            <input id="toggle-sound" type="checkbox" checked class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+            Sound Chime
+          </label>
+          <button id="btn-enable-notif" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold border border-emerald-200 transition">
+            Enable Browser Alerts
+          </button>
+        </div>
+      </div>
+
+      <div id="schedule-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- TAB 3: WHAT TO EAT -->
+    <section id="tab-meals" class="tab-panel hidden space-y-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Gujarati Vegan Weight-Loss Meal Ideas</h2>
+          <p class="text-xs text-slate-500 mt-0.5">100% plant-based, dairy-free &amp; ghee-free Gujarati and everyday options. Click to log directly.</p>
+        </div>
+        <div id="meal-filter-group" class="flex flex-wrap gap-1.5">
+          <button type="button" data-filter="All" class="meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white">All</button>
+          <button type="button" data-filter="Breakfast" class="meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Breakfast</button>
+          <button type="button" data-filter="Lunch" class="meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Lunch / Dinner</button>
+          <button type="button" data-filter="Snack" class="meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Snack</button>
+          <button type="button" data-filter="High-Protein" class="meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">High-Protein</button>
+        </div>
+      </div>
+
+      <div id="meal-ideas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- TAB 4: EXERCISE NEEDED -->
+    <section id="tab-exercise" class="tab-panel hidden space-y-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-base font-semibold text-slate-900">How Much Exercise Do You Need Today?</h2>
+          <span id="exercise-goal-pill" class="text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200 px-3 py-1 rounded-full">Target Burn: 250 kcal</span>
+        </div>
+        <p id="exercise-needed-summary" class="text-xs text-slate-600">Calculated for your current weight using standard MET values (Calories = MET &times; Weight kg &times; Hours).</p>
+      </div>
+
+      <div id="exercise-plan-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- TAB 5: GOALS & PROGRESS -->
+    <section id="tab-progress" class="tab-panel hidden space-y-6">
+      <form id="form-goals" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="text-base font-semibold text-slate-900">Personal Targets &amp; Weight-Loss Settings</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label for="goal-current-weight" class="block text-xs font-medium text-slate-600 mb-1">Current Weight (kg)</label>
+            <input id="goal-current-weight" type="number" step="0.1" min="25" max="300" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label for="goal-target-weight" class="block text-xs font-medium text-slate-600 mb-1">Goal Weight (kg)</label>
+            <input id="goal-target-weight" type="number" step="0.1" min="25" max="300" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label for="goal-calories" class="block text-xs font-medium text-slate-600 mb-1">Daily Calorie Target (kcal)</label>
+            <input id="goal-calories" type="number" min="1000" max="5000" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label for="goal-protein" class="block text-xs font-medium text-slate-600 mb-1">Daily Protein Target (g)</label>
+            <input id="goal-protein" type="number" min="20" max="350" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label for="goal-burn" class="block text-xs font-medium text-slate-600 mb-1">Daily Exercise Burn Goal (kcal)</label>
+            <input id="goal-burn" type="number" min="50" max="2000" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label for="goal-water" class="block text-xs font-medium text-slate-600 mb-1">Daily Water Goal (L)</label>
+            <input id="goal-water" type="number" step="0.5" min="1" max="8" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">Save Targets</button>
+        </div>
+      </form>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-slate-900">7-Day Net Calorie History</h2>
+          <span class="text-xs text-slate-500">Updates automatically as you log each day</span>
+        </div>
+        <div class="relative h-72">
+          <canvas id="calorie-chart"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = 'calorie_routine_coach_v1';
+
+      const MEAL_IDEAS = [
+        { id: 'm1', name: '2 Plain Moong Dal Chillas (Pudla)', slot: 'Breakfast', kcal: 330, protein: 18, tags: ['Breakfast', 'High-Protein'], note: 'Vegan high-protein Gujarati lentil pancakes cooked with minimal oil.' },
+        { id: 'm2', name: 'Gujarati Handvo (100g baked slice)', slot: 'Breakfast', kcal: 207, protein: 8, tags: ['Breakfast', 'Snack'], note: 'Savory fermented rice-lentil & lauki cake (dairy-free).' },
+        { id: 'm3', name: 'Masala Oats (1 bowl)', slot: 'Breakfast', kcal: 235, protein: 8, tags: ['Breakfast'], note: 'High-fiber whole grain cooked with vegetables, no ghee.' },
+        { id: 'm4', name: 'Kanda Poha with Sprouts & Peanuts', slot: 'Breakfast', kcal: 360, protein: 11, tags: ['Breakfast'], note: 'Plant-based flattened rice with sprouted moong and roasted peanuts.' },
+        { id: 'm5', name: '3 Green Moong Dal & Veg Idlis', slot: 'Snack', kcal: 133, protein: 10, tags: ['Breakfast', 'Snack'], note: 'Steamed, oil-free, low-GI vegan snack or light breakfast.' },
+        { id: 'm6', name: '2 Methi Bajra Rotis (no ghee)', slot: 'Lunch', kcal: 240, protein: 6, tags: ['Lunch'], note: 'Pearl millet & fenugreek flatbread; pair with dry veg sabzi.' },
+        { id: 'm7', name: '1 Bajra Rotla (70g, no ghee)', slot: 'Lunch', kcal: 160, protein: 5, tags: ['Lunch'], note: 'Traditional Gujarati millet flatbread; pair with ringan or dal.' },
+        { id: 'm8', name: 'Sprouted Moong & Kala Chana Salad (200g)', slot: 'Lunch', kcal: 254, protein: 12, tags: ['Lunch', 'Snack', 'High-Protein'], note: 'Crunchy Gujarati kathol salad with lemon, coriander & spices.' },
+        { id: 'm9', name: 'Plain Dal Khichdi (1 bowl, no ghee)', slot: 'Dinner', kcal: 275, protein: 10, tags: ['Lunch'], note: 'Light, easy-to-digest moong dal & rice dinner made with 1 tsp oil.' },
+        { id: 'm10', name: 'Steamed Khaman Dhokla (2 pieces)', slot: 'Snack', kcal: 130, protein: 5, tags: ['Snack'], note: 'Light, steamed chickpea-flour Gujarati snack.' },
+        { id: 'm11', name: '2 Besan Chillas (Pudla)', slot: 'Dinner', kcal: 270, protein: 15, tags: ['Lunch', 'High-Protein'], note: 'Quick vegan chickpea-flour dinner with grated lauki or spinach.' }
+      ];
+
+      const EXERCISE_OPTIONS = [
+        { id: 'e1', name: 'Moderate Walking (4.5–5.5 km/h)', met: 3.8, benefit: 'Gentle fat burn & daily step goal' },
+        { id: 'e2', name: 'Brisk Walking (6+ km/h)', met: 4.3, benefit: 'Low-impact cardio for steady weight loss' },
+        { id: 'e3', name: 'Yoga / Mobility Flow', met: 2.5, benefit: 'Flexibility, recovery & stress reduction' },
+        { id: 'e4', name: 'Strength / Weight Training', met: 6.0, benefit: 'Preserves lean muscle while losing fat' },
+        { id: 'e5', name: 'Stationary Cycling', met: 6.8, benefit: 'Joint-friendly endurance burn' },
+        { id: 'e6', name: 'HIIT / Zumba', met: 8.0, benefit: 'High-efficiency calorie burn in less time' },
+        { id: 'e7', name: 'Running (8 km/h)', met: 8.5, benefit: 'Maximum aerobic calorie expenditure' }
+      ];
+
+      function getTodayKey() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function getDefaultState() {
+        return {
+          goals: {
+            currentWeight: 80.0,
+            targetWeight: 74.0,
+            calories: 1800,
+            protein: 120,
+            burn: 250,
+            water: 3.0
+          },
+          soundEnabled: true,
+          schedule: [
+            { id: 's1', title: 'Breakfast', time: '08:30', enabled: true, suggestion: 'Try 2 Moong Dal Chillas or Masala Oats (~235–330 kcal)' },
+            { id: 's2', title: 'Mid-Morning Snack', time: '11:00', enabled: true, suggestion: '3 Green Moong Idlis or fruit + water (~130 kcal)' },
+            { id: 's3', title: 'Lunch', time: '13:30', enabled: true, suggestion: '2 Methi Bajra Rotis + Sprouted Moong Salad (~494 kcal, 18g protein)' },
+            { id: 's4', title: 'Evening Snack', time: '17:00', enabled: true, suggestion: '2 Steamed Dhokla pieces (~130 kcal)' },
+            { id: 's5', title: 'Exercise Session', time: '18:30', enabled: true, suggestion: '30–45 min Brisk Walk, Cycling, or Strength Training' },
+            { id: 's6', title: 'Dinner', time: '20:30', enabled: true, suggestion: 'Plain Dal Khichdi or 2 Besan Chillas (~270 kcal)' }
+          ],
+          days: {}
+        };
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return getDefaultState();
+          const parsed = JSON.parse(raw);
+          return Object.assign(getDefaultState(), parsed);
+        } catch (e) {
+          return getDefaultState();
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          // Safe fallback when storage is unavailable
+        }
+      }
+
+      let state = loadState();
+      let activeTab = 'tracker';
+      let activeMealFilter = 'All';
+      let triggeredMinuteKey = '';
+      let chartInstance = null;
+
+      function ensureTodayRecord() {
+        const key = getTodayKey();
+        if (!state.days[key]) {
+          state.days[key] = {
+            meals: [],
+            exercises: [],
+            waterLiters: 0,
+            weightKg: state.goals.currentWeight
+          };
+        }
+        return state.days[key];
+      }
+
+      function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.remove('hidden');
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => {
+          toast.classList.add('hidden');
+        }, 2800);
+      }
+
+      function playChime() {
+        if (!state.soundEnabled) return;
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.setValueAtTime(880, ctx.currentTime + 0.14);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.45);
+        } catch (e) {
+          // Audio blocked before gesture or unsupported
+        }
+      }
+
+      function triggerReminderAlert(title, subtitle) {
+        const banner = document.getElementById('reminder-banner');
+        document.getElementById('reminder-banner-title').textContent = `Reminder: ${title}`;
+        document.getElementById('reminder-banner-sub').textContent = subtitle;
+        banner.classList.remove('hidden');
+        playChime();
+        try {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(`Time for ${title}`, { body: subtitle });
+          }
+        } catch (e) {
+          // Notification API unavailable in iframe
+        }
+      }
+
+      function switchTab(tabName) {
+        activeTab = tabName;
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+          panel.classList.toggle('hidden', panel.id !== `tab-${tabName}`);
+        });
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+          const isCurrent = btn.dataset.tab === tabName;
+          btn.className = isCurrent
+            ? 'tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white transition'
+            : 'tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition';
+        });
+        if (tabName === 'progress') {
+          renderChart();
+        }
+      }
+
+      function computeExerciseBurn(met, minutes) {
+        const w = Number(state.goals.currentWeight) || 70;
+        return Math.round(met * w * (minutes / 60));
+      }
+
+      function updateExercisePreview() {
+        const met = Number(document.getElementById('exercise-type').value) || 3.8;
+        const mins = Math.max(0, Number(document.getElementById('exercise-minutes').value) || 0);
+        const kcal = computeExerciseBurn(met, mins);
+        document.getElementById('exercise-est-preview').textContent = `${kcal} kcal`;
+      }
+
+      function renderTracker() {
+        const today = ensureTodayRecord();
+        const consumed = today.meals.reduce((sum, m) => sum + (Number(m.kcal) || 0), 0);
+        const protein = today.meals.reduce((sum, m) => sum + (Number(m.protein) || 0), 0);
+        const burned = today.exercises.reduce((sum, ex) => sum + (Number(ex.kcal) || 0), 0);
+        const net = consumed - burned;
+        const target = Number(state.goals.calories) || 1800;
+        const remaining = target - net;
+
+        document.getElementById('kpi-consumed').textContent = `${consumed.toLocaleString()} kcal`;
+        document.getElementById('kpi-target-sub').textContent = `Target: ${target.toLocaleString()} kcal`;
+        document.getElementById('kpi-burned').textContent = `${burned.toLocaleString()} kcal`;
+        document.getElementById('kpi-burn-sub').textContent = `Goal: ${state.goals.burn.toLocaleString()} kcal`;
+
+        const remEl = document.getElementById('kpi-remaining');
+        remEl.textContent = `${remaining >= 0 ? remaining.toLocaleString() : `-${Math.abs(remaining).toLocaleString()}`} kcal`;
+        remEl.className = remaining >= 0 ? 'text-2xl font-bold text-emerald-600 mt-1' : 'text-2xl font-bold text-rose-600 mt-1';
+        document.getElementById('kpi-net-sub').textContent = `Net: ${net.toLocaleString()} kcal`;
+
+        document.getElementById('kpi-protein').textContent = `${protein} g`;
+        document.getElementById('kpi-water-sub').textContent = `Water: ${today.waterLiters.toFixed(2)} / ${Number(state.goals.water).toFixed(1)} L`;
+        document.getElementById('water-badge').textContent = `${today.waterLiters.toFixed(2)} L`;
+
+        const weightInput = document.getElementById('today-weight-input');
+        if (document.activeElement !== weightInput) {
+          weightInput.value = today.weightKg || state.goals.currentWeight;
+        }
+
+        const pct = target > 0 ? Math.max(0, Math.round((net / target) * 100)) : 0;
+        const clampedPct = Math.min(100, pct);
+        const bar = document.getElementById('calorie-progress-bar');
+        bar.style.width = `${clampedPct}%`;
+        bar.className = net > target ? 'h-full bg-rose-500 rounded-full transition-all duration-300' : 'h-full bg-emerald-600 rounded-full transition-all duration-300';
+        document.getElementById('calorie-progress-pct').textContent = `${pct}% of target`;
+
+        const guide = document.getElementById('calorie-guidance-text');
+        if (consumed === 0 && burned === 0) {
+          guide.textContent = 'Log your meals and workouts below or pick an option from "What to Eat".';
+        } else if (remaining >= 0) {
+          guide.textContent = `You have ${remaining.toLocaleString()} kcal remaining today to stay on track for your weight-loss goal.`;
+        } else {
+          guide.textContent = `You are ${Math.abs(remaining).toLocaleString()} kcal over target. A 25–30 min brisk walk can help balance it.`;
+        }
+
+        const listEl = document.getElementById('today-log-list');
+        const combined = [
+          ...today.meals.map((m) => ({ ...m, kind: 'meal' })),
+          ...today.exercises.map((e) => ({ ...e, kind: 'exercise' }))
+        ].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        if (combined.length === 0) {
+          listEl.innerHTML = '<p class="text-sm text-slate-400 py-4 text-center">No meals or workouts logged yet today.</p>';
+        } else {
+          listEl.innerHTML = combined
+            .map((item) => {
+              if (item.kind === 'meal') {
+                return `
+                  <div class="py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-800">${item.name}</p>
+                      <p class="text-xs text-slate-500">${item.slot} &bull; ${item.protein || 0}g protein</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <span class="text-sm font-semibold text-slate-800">+${item.kcal} kcal</span>
+                      <button type="button" data-delete-kind="meal" data-delete-id="${item.id}" class="text-xs text-rose-600 hover:text-rose-800 font-medium">Remove</button>
+                    </div>
+                  </div>
+                `;
+              }
+              return `
+                <div class="py-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">${item.name}</p>
+                    <p class="text-xs text-slate-500">${item.minutes} min workout</p>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-sm font-semibold text-orange-600">-${item.kcal} kcal</span>
+                    <button type="button" data-delete-kind="exercise" data-delete-id="${item.id}" class="text-xs text-rose-600 hover:text-rose-800 font-medium">Remove</button>
+                  </div>
+                </div>
+              `;
+            })
+            .join('');
+        }
+      }
+
+      function renderSchedule() {
+        document.getElementById('toggle-sound').checked = !!state.soundEnabled;
+        const container = document.getElementById('schedule-list');
+        container.innerHTML = state.schedule
+          .map((item) => `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-3">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-slate-900">${item.title}</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">${item.suggestion}</p>
+                </div>
+                <label class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 cursor-pointer shrink-0">
+                  <input type="checkbox" data-schedule-toggle="${item.id}" ${item.enabled ? 'checked' : ''} class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                  On
+                </label>
+              </div>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                <label class="text-xs text-slate-600 font-medium" for="sched-time-${item.id}">Reminder Time</label>
+                <input id="sched-time-${item.id}" type="time" data-schedule-time="${item.id}" value="${item.time}" class="px-2.5 py-1 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+          `)
+          .join('');
+      }
+
+      function renderMeals() {
+        document.querySelectorAll('.meal-filter-btn').forEach((btn) => {
+          const active = btn.dataset.filter === activeMealFilter;
+          btn.className = active
+            ? 'meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white'
+            : 'meal-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200';
+        });
+
+        const filtered = MEAL_IDEAS.filter((m) => {
+          if (activeMealFilter === 'All') return true;
+          return m.tags.includes(activeMealFilter);
+        });
+
+        const grid = document.getElementById('meal-ideas-grid');
+        grid.innerHTML = filtered
+          .map((m) => `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-3">
+              <div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">${m.slot}</span>
+                  <span class="text-xs font-semibold text-slate-700">${m.kcal} kcal &bull; ${m.protein}g protein</span>
+                </div>
+                <h3 class="text-sm font-semibold text-slate-900 mt-2">${m.name}</h3>
+                <p class="text-xs text-slate-500 mt-1">${m.note}</p>
+              </div>
+              <button type="button" data-quick-meal="${m.id}" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">
+                Log This Meal
+              </button>
+            </div>
+          `)
+          .join('');
+      }
+
+      function renderExercisePlanner() {
+        const burnGoal = Number(state.goals.burn) || 250;
+        const weight = Number(state.goals.currentWeight) || 70;
+        document.getElementById('exercise-goal-pill').textContent = `Target Burn: ${burnGoal} kcal`;
+        document.getElementById('exercise-needed-summary').textContent =
+          `Calculated for ${weight.toFixed(1)} kg body weight (Calories = MET × Weight kg × Hours). Pick any workout below to hit your ${burnGoal} kcal daily burn goal.`;
+
+        const grid = document.getElementById('exercise-plan-grid');
+        grid.innerHTML = EXERCISE_OPTIONS
+          .map((ex) => {
+            const kcalPerHour = ex.met * weight;
+            const minsNeeded = Math.max(10, Math.round((burnGoal / kcalPerHour) * 60));
+            const estBurn = computeExerciseBurn(ex.met, minsNeeded);
+            return `
+              <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-3">
+                <div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-semibold uppercase tracking-wide text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">${ex.met} MET</span>
+                    <span class="text-xs font-semibold text-slate-700">~${estBurn} kcal</span>
+                  </div>
+                  <h3 class="text-sm font-semibold text-slate-900 mt-2">${ex.name}</h3>
+                  <p class="text-xs text-slate-500 mt-1">${ex.benefit}</p>
+                  <p class="text-xs font-semibold text-slate-800 mt-2">Needed today: ${minsNeeded} minutes</p>
+                </div>
+                <button type="button" data-quick-ex-name="${ex.name}" data-quick-ex-mins="${minsNeeded}" data-quick-ex-kcal="${estBurn}" class="w-full py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold transition">
+                  Log ${minsNeeded} min (${estBurn} kcal)
+                </button>
+              </div>
+            `;
+          })
+          .join('');
+      }
+
+      function renderGoalsForm() {
+        document.getElementById('goal-current-weight').value = state.goals.currentWeight;
+        document.getElementById('goal-target-weight').value = state.goals.targetWeight;
+        document.getElementById('goal-calories').value = state.goals.calories;
+        document.getElementById('goal-protein').value = state.goals.protein;
+        document.getElementById('goal-burn').value = state.goals.burn;
+        document.getElementById('goal-water').value = state.goals.water;
+      }
+
+      function renderChart() {
+        const ctx = document.getElementById('calorie-chart');
+        if (!ctx || typeof Chart === 'undefined') return;
+
+        const labels = [];
+        const netValues = [];
+        const targetValues = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+          const rec = state.days[key];
+          if (rec) {
+            const c = rec.meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
+            const b = rec.exercises.reduce((s, e) => s + (Number(e.kcal) || 0), 0);
+            netValues.push(c - b);
+          } else {
+            netValues.push(0);
+          }
+          targetValues.push(Number(state.goals.calories) || 1800);
+        }
+
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+        chartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Net Calories (kcal)',
+                data: netValues,
+                backgroundColor: '#059669',
+                borderRadius: 6
+              },
+              {
+                label: 'Daily Target (kcal)',
+                data: targetValues,
+                type: 'line',
+                borderColor: '#f97316',
+                borderDash: [5, 5],
+                pointRadius: 3,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      }
+
+      function updateCountdown() {
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+        const currentSec = now.getSeconds();
+        const enabledItems = state.schedule
+          .filter((s) => s.enabled && s.time)
+          .map((s) => {
+            const [hh, mm] = s.time.split(':').map(Number);
+            return { ...s, totalMins: hh * 60 + mm };
+          })
+          .sort((a, b) => a.totalMins - b.totalMins);
+
+        if (enabledItems.length === 0) {
+          document.getElementById('next-reminder-text').textContent = 'All reminders paused';
+          return;
+        }
+
+        const minuteKey = `${getTodayKey()}-${now.getHours()}:${now.getMinutes()}`;
+        enabledItems.forEach((item) => {
+          if (item.totalMins === currentMins && currentSec <= 2 && triggeredMinuteKey !== minuteKey) {
+            triggeredMinuteKey = minuteKey;
+            triggerReminderAlert(item.title, item.suggestion);
+          }
+        });
+
+        let next = enabledItems.find((item) => item.totalMins > currentMins);
+        let diffMins;
+        if (next) {
+          diffMins = next.totalMins - currentMins;
+        } else {
+          next = enabledItems[0];
+          diffMins = 24 * 60 - currentMins + next.totalMins;
+        }
+        const hrs = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+        document.getElementById('next-reminder-text').textContent = `${next.title} (${next.time}) in ${timeStr}`;
+      }
+
+      function renderAll() {
+        document.getElementById('today-date-label').textContent = new Date().toLocaleDateString(undefined, {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        renderTracker();
+        renderSchedule();
+        renderMeals();
+        renderExercisePlanner();
+        renderGoalsForm();
+        updateExercisePreview();
+        updateCountdown();
+      }
+
+      // Event Listeners
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      document.getElementById('btn-test-alert').addEventListener('click', () => {
+        triggerReminderAlert('Meal / Workout Check-In', 'Stay hydrated and log your next meal or 30-min walk!');
+      });
+
+      document.getElementById('reminder-banner-dismiss').addEventListener('click', () => {
+        document.getElementById('reminder-banner').classList.add('hidden');
+      });
+
+      document.getElementById('reminder-banner-action').addEventListener('click', () => {
+        document.getElementById('reminder-banner').classList.add('hidden');
+        switchTab('meals');
+      });
+
+      document.getElementById('btn-water-plus').addEventListener('click', () => {
+        const today = ensureTodayRecord();
+        today.waterLiters = Math.round((today.waterLiters + 0.25) * 100) / 100;
+        saveState();
+        renderTracker();
+      });
+
+      document.getElementById('btn-water-minus').addEventListener('click', () => {
+        const today = ensureTodayRecord();
+        today.waterLiters = Math.max(0, Math.round((today.waterLiters - 0.25) * 100) / 100);
+        saveState();
+        renderTracker();
+      });
+
+      document.getElementById('btn-save-weight').addEventListener('click', () => {
+        const val = parseFloat(document.getElementById('today-weight-input').value);
+        if (!val || val < 25 || val > 300) {
+          showToast('Enter a valid weight between 25 and 300 kg.');
+          return;
+        }
+        const today = ensureTodayRecord();
+        today.weightKg = val;
+        state.goals.currentWeight = val;
+        saveState();
+        renderAll();
+        showToast(`Saved weight: ${val.toFixed(1)} kg`);
+      });
+
+      document.getElementById('form-add-meal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('meal-name').value.trim();
+        const slot = document.getElementById('meal-slot').value;
+        const kcal = parseInt(document.getElementById('meal-calories').value, 10);
+        const protein = parseInt(document.getElementById('meal-protein').value, 10) || 0;
+        if (!name || !kcal || kcal <= 0) return;
+
+        const today = ensureTodayRecord();
+        today.meals.push({
+          id: `m-${Date.now()}`,
+          name,
+          slot,
+          kcal,
+          protein,
+          createdAt: Date.now()
+        });
+        saveState();
+        e.target.reset();
+        renderTracker();
+        showToast(`Logged ${name} (+${kcal} kcal)`);
+      });
+
+      document.getElementById('exercise-type').addEventListener('change', updateExercisePreview);
+      document.getElementById('exercise-minutes').addEventListener('input', updateExercisePreview);
+
+      document.getElementById('form-add-exercise').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const selectEl = document.getElementById('exercise-type');
+        const met = Number(selectEl.value) || 3.8;
+        const label = selectEl.options[selectEl.selectedIndex].text.split(' (')[0];
+        const minutes = parseInt(document.getElementById('exercise-minutes').value, 10) || 30;
+        const kcal = computeExerciseBurn(met, minutes);
+
+        const today = ensureTodayRecord();
+        today.exercises.push({
+          id: `e-${Date.now()}`,
+          name: label,
+          minutes,
+          kcal,
+          createdAt: Date.now()
+        });
+        saveState();
+        renderTracker();
+        showToast(`Logged ${label} (-${kcal} kcal)`);
+      });
+
+      document.getElementById('today-log-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-delete-id]');
+        if (!btn) return;
+        const kind = btn.dataset.deleteKind;
+        const id = btn.dataset.deleteId;
+        const today = ensureTodayRecord();
+        if (kind === 'meal') {
+          today.meals = today.meals.filter((m) => m.id !== id);
+        } else {
+          today.exercises = today.exercises.filter((ex) => ex.id !== id);
+        }
+        saveState();
+        renderTracker();
+      });
+
+      document.getElementById('btn-clear-today').addEventListener('click', () => {
+        const today = ensureTodayRecord();
+        today.meals = [];
+        today.exercises = [];
+        today.waterLiters = 0;
+        saveState();
+        renderTracker();
+        showToast("Cleared today's log");
+      });
+
+      document.getElementById('toggle-sound').addEventListener('change', (e) => {
+        state.soundEnabled = e.target.checked;
+        saveState();
+      });
+
+      document.getElementById('btn-enable-notif').addEventListener('click', async () => {
+        try {
+          if (!('Notification' in window)) {
+            showToast('Browser notifications not supported here; in-app alerts are active.');
+            return;
+          }
+          const perm = await Notification.requestPermission();
+          showToast(perm === 'granted' ? 'Browser notifications enabled!' : 'Using in-app reminder banner.');
+        } catch (e) {
+          showToast('Using in-app reminder banner.');
+        }
+      });
+
+      document.getElementById('schedule-list').addEventListener('change', (e) => {
+        const toggleId = e.target.dataset.scheduleToggle;
+        const timeId = e.target.dataset.scheduleTime;
+        if (toggleId) {
+          const item = state.schedule.find((s) => s.id === toggleId);
+          if (item) item.enabled = e.target.checked;
+        }
+        if (timeId) {
+          const item = state.schedule.find((s) => s.id === timeId);
+          if (item) item.time = e.target.value;
+        }
+        saveState();
+        updateCountdown();
+      });
+
+      document.getElementById('meal-filter-group').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-filter]');
+        if (!btn) return;
+        activeMealFilter = btn.dataset.filter;
+        renderMeals();
+      });
+
+      document.getElementById('meal-ideas-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-quick-meal]');
+        if (!btn) return;
+        const meal = MEAL_IDEAS.find((m) => m.id === btn.dataset.quickMeal);
+        if (!meal) return;
+        const today = ensureTodayRecord();
+        today.meals.push({
+          id: `m-${Date.now()}`,
+          name: meal.name,
+          slot: meal.slot,
+          kcal: meal.kcal,
+          protein: meal.protein,
+          createdAt: Date.now()
+        });
+        saveState();
+        renderTracker();
+        showToast(`Logged ${meal.name} (+${meal.kcal} kcal)`);
+      });
+
+      document.getElementById('exercise-plan-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-quick-ex-name]');
+        if (!btn) return;
+        const name = btn.dataset.quickExName;
+        const minutes = parseInt(btn.dataset.quickExMins, 10);
+        const kcal = parseInt(btn.dataset.quickExKcal, 10);
+        const today = ensureTodayRecord();
+        today.exercises.push({
+          id: `e-${Date.now()}`,
+          name,
+          minutes,
+          kcal,
+          createdAt: Date.now()
+        });
+        saveState();
+        renderTracker();
+        showToast(`Logged ${name} (-${kcal} kcal)`);
+      });
+
+      document.getElementById('form-goals').addEventListener('submit', (e) => {
+        e.preventDefault();
+        state.goals.currentWeight = parseFloat(document.getElementById('goal-current-weight').value) || 80;
+        state.goals.targetWeight = parseFloat(document.getElementById('goal-target-weight').value) || 74;
+        state.goals.calories = parseInt(document.getElementById('goal-calories').value, 10) || 1800;
+        state.goals.protein = parseInt(document.getElementById('goal-protein').value, 10) || 120;
+        state.goals.burn = parseInt(document.getElementById('goal-burn').value, 10) || 250;
+        state.goals.water = parseFloat(document.getElementById('goal-water').value) || 3.0;
+        saveState();
+        renderAll();
+        if (activeTab === 'progress') renderChart();
+        showToast('Targets updated!');
+      });
+
+      renderAll();
+      setInterval(updateCountdown, 1000);
+    })();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
